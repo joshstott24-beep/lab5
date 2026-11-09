@@ -1,77 +1,315 @@
-Part 1: Create the Database Tables
+# Lab 5 Notes: Peer Tutoring Hub Database
 
-Which column is the primary key in each table?
+**GitHub Repository:** https://github.com/joshstott24-beep/lab5
 
-The primary key for the students table is student_id, and the primary key for the tutoring_requests table is request_id. These identify individual records in each table.
+The full script is in `tutoring.sql`. I ran it in GitHub Codespaces using:
 
-Which column is the foreign key, and what relationship does it represent?
+```bash
+sqlite3 tutoring.db < tutoring.sql | tee lab5-output.txt
+```
 
-The foreign key is student_id in the tutoring_requests table. It connects each tutoring request to a student in the students table. One student can have multiple tutoring requests.
+## Part 1: Create the Database Tables
 
-Why is student_email marked UNIQUE?
+**SQL statements:**
 
-The UNIQUE constraint prevents multiple students from being registered with the same email address. This helps prevent duplicate student records.
+```sql
+CREATE TABLE IF NOT EXISTS students (
+  student_id INTEGER PRIMARY KEY,
+  student_name TEXT NOT NULL,
+  student_email TEXT NOT NULL UNIQUE
+);
 
-Part 2: Insert Students and Tutoring Requests
+CREATE TABLE IF NOT EXISTS tutoring_requests (
+  request_id INTEGER PRIMARY KEY,
+  student_id INTEGER NOT NULL,
+  course TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  preferred_date TEXT NOT NULL,
+  preferred_time TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Open',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES students(student_id)
+);
+```
 
-Explanation of the results:
+**Output of `.tables` and `.schema`:**
 
-The three requests were successfully added with a default status of Open. The database also automatically recorded when each request was created.
+```text
+===== Part 1: Create tables =====
+--- .tables ---
+      name
+-----------------
+students
+tutoring_requests
+--- .schema ---
+CREATE TABLE students (
+  student_id INTEGER PRIMARY KEY,
+  student_name TEXT NOT NULL,
+  student_email TEXT NOT NULL UNIQUE
+);
+CREATE TABLE tutoring_requests (
+  request_id INTEGER PRIMARY KEY,
+  student_id INTEGER NOT NULL,
+  course TEXT NOT NULL,
+  topic TEXT NOT NULL,
+  preferred_date TEXT NOT NULL,
+  preferred_time TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'Open',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES students(student_id)
+);
+```
 
-Why does Jordan have one student row but two request rows?
+**Which column is the primary key in each table?**
 
-Jordan only needs one student record because both requests belong to the same person. The two tutoring requests are stored separately and connected to Jordan through student_id. This avoids storing the same student information multiple times.
+The primary key for the students table is student_id, and the primary key for the tutoring_requests table is request_id. Each one identifies a specific row.
 
-Part 3: Read the Stored Data
+**Which column is the foreign key, and what relationship does it represent?**
 
-What does the JOIN condition connect?
+The foreign key is student_id in the tutoring_requests table. It links a request to the student who made it. A student can have more than one request.
 
-The JOIN connects the student_id in the tutoring_requests table with the matching student_id in the students table. This allows us to display student information alongside their tutoring requests.
+**Why is student_email marked UNIQUE?**
 
-What is the difference between the purpose of JOIN and WHERE?
+So two students can’t be entered with the same email address.
 
-JOIN combines related information from different tables, while WHERE filters the results based on specific conditions.
+## Part 2: Insert Students and Tutoring Requests
 
-Why should the application retrieve one request by request_id instead of by topic alone?
+**INSERT statements:**
 
-Multiple students could submit requests for the same topic. Using request_id ensures that the correct request is retrieved because each request has a unique ID.
+```sql
+INSERT INTO students (student_name, student_email)
+VALUES ('Jordan Lee', 'jordan.lee@example.edu');
 
-Part 4: Update One Request
+INSERT INTO students (student_name, student_email)
+VALUES ('Avery Patel', 'avery.patel@example.edu');
 
-Why is a specific WHERE clause essential in an UPDATE statement?
+INSERT INTO tutoring_requests (student_id, course, topic, preferred_date, preferred_time)
+VALUES (1, 'IS 6465', 'Forms', '2026-11-16', '15:00');
 
-Without a WHERE clause, the UPDATE statement would change every record in the table. Using a specific request_id ensures that only the intended request is updated.
+INSERT INTO tutoring_requests (student_id, course, topic, preferred_date, preferred_time)
+VALUES (1, 'IS 6465', 'SQL SELECT', '2026-11-18', '10:00');
 
-Why does the Peer Tutoring Hub use a Cancelled status instead of immediately deleting a real request?
+INSERT INTO tutoring_requests (student_id, course, topic, preferred_date, preferred_time)
+VALUES (2, 'IS 6465', 'SQLite CRUD', '2026-11-17', '13:00');
+```
 
-Keeping cancelled requests allows the application to maintain a history of tutoring activity. This information could be useful for reporting or reviewing previous requests.
+**`SELECT * FROM students;` and `SELECT * FROM tutoring_requests;` output:**
 
-Part 5: Delete One Test Request
+```text
+--- 3.1 All students ---
+student_id  student_name       student_email
+----------  ------------  -----------------------
+         1  Jordan Lee    jordan.lee@example.edu
+         2  Avery Patel   avery.patel@example.edu
 
-Why is a WHERE clause essential in a DELETE statement?
+--- 3.2 All tutoring requests ---
+request_id  student_id  course      topic     preferred_date  preferred_time  status      created_at
+----------  ----------  -------  -----------  --------------  --------------  ------  -------------------
+         1           1  IS 6465  Forms        2026-11-16      15:00           Open    2026-11-09 02:30:04
+         2           1  IS 6465  SQL SELECT   2026-11-18      10:00           Open    2026-11-09 02:30:04
+         3           2  IS 6465  SQLite CRUD  2026-11-17      13:00           Open    2026-11-09 02:30:04
+```
 
-Without a WHERE clause, DELETE would remove every record from the table. Specifying the request_id ensures that only the test request is deleted.
+**Explanation of the results:**
 
-Part 6: Reflect on the CRUD Workflow
+All three requests were added as Open. The database filled in the creation timestamps automatically.
 
-CRUD Action	SQL Statement	Peer Tutoring Hub Example
-Create	INSERT INTO	Adding students and tutoring requests
-Read	SELECT	Retrieving tutoring requests and student information
-Update	UPDATE	Changing a request date or cancelling a request
-Delete	DELETE	Removing a test tutoring request
+**Why does Jordan have one student row but two request rows?**
 
-How does the database preserve the connection between a student and that student’s requests?
+Jordan is one student, but submitted two requests. Both requests point to the same student_id, so we don’t have to enter Jordan’s information twice.
 
-The database uses student_id as a foreign key in the tutoring_requests table. This connects each request to the correct student and helps maintain the relationship between the two tables.
+## Part 3: Read the Stored Data
 
-Which database constraint prevents two student rows from using the same email address?
+**1. All rows in students** (output shown in Part 2)
 
-The UNIQUE constraint on student_email prevents duplicate email addresses.
+```sql
+SELECT * FROM students;
+```
 
-What could happen if an UPDATE or DELETE statement did not include a WHERE clause?
+**2. All rows in tutoring_requests** (output shown in Part 2)
 
-Without a WHERE clause, the statement would affect every record in the table. This could result in accidentally changing or deleting information that should have been left alone.
+```sql
+SELECT * FROM tutoring_requests;
+```
 
-When the application later receives values from an HTML form, why should PHP send those values as parameters instead of placing them directly into SQL text?
+**3. Requests with a status of Open**
 
-Using parameters helps prevent SQL injection by keeping user input separate from the SQL statements. This makes the application more secure and helps ensure user input is handled correctly.
+```sql
+SELECT * FROM tutoring_requests
+WHERE status = 'Open';
+```
+
+```text
+--- 3.3 Open requests ---
+request_id  student_id  course      topic     preferred_date  preferred_time  status      created_at
+----------  ----------  -------  -----------  --------------  --------------  ------  -------------------
+         1           1  IS 6465  Forms        2026-11-16      15:00           Open    2026-11-09 02:30:04
+         2           1  IS 6465  SQL SELECT   2026-11-18      10:00           Open    2026-11-09 02:30:04
+         3           2  IS 6465  SQLite CRUD  2026-11-17      13:00           Open    2026-11-09 02:30:04
+```
+
+**4. One request by request_id**
+
+```sql
+SELECT * FROM tutoring_requests
+WHERE request_id = 2;
+```
+
+```text
+--- 3.4 Request with request_id = 2 ---
+request_id  student_id  course     topic     preferred_date  preferred_time  status      created_at
+----------  ----------  -------  ----------  --------------  --------------  ------  -------------------
+         2           1  IS 6465  SQL SELECT  2026-11-18      10:00           Open    2026-11-09 02:30:04
+```
+
+**5. JOIN request list ordered by preferred_date**
+
+```sql
+SELECT
+  r.request_id,
+  s.student_name,
+  s.student_email,
+  r.course,
+  r.topic,
+  r.preferred_date,
+  r.preferred_time,
+  r.status
+FROM tutoring_requests AS r
+JOIN students AS s ON r.student_id = s.student_id
+ORDER BY r.preferred_date;
+```
+
+```text
+--- 3.5 JOIN request list ---
+request_id  student_name       student_email       course      topic     preferred_date  preferred_time  status
+----------  ------------  -----------------------  -------  -----------  --------------  --------------  ------
+         1  Jordan Lee    jordan.lee@example.edu   IS 6465  Forms        2026-11-16      15:00           Open
+         3  Avery Patel   avery.patel@example.edu  IS 6465  SQLite CRUD  2026-11-17      13:00           Open
+         2  Jordan Lee    jordan.lee@example.edu   IS 6465  SQL SELECT   2026-11-18      10:00           Open
+```
+
+**What does the JOIN condition connect?**
+
+It matches student_id in both tables so the results show each request with the student’s name and email.
+
+**What is the difference between the purpose of JOIN and WHERE?**
+
+JOIN pulls related data from both tables. WHERE narrows down which rows show up.
+
+**Why should the application retrieve one request by request_id instead of by topic alone?**
+
+More than one request could have the same topic. request_id identifies the exact request we want.
+
+## Part 4: Update One Request
+
+**UPDATE statements:**
+
+```sql
+-- Revise Jordan's Forms request (new date and time)
+UPDATE tutoring_requests
+SET preferred_date = '2026-11-19',
+    preferred_time = '16:00'
+WHERE request_id = 1;
+
+-- Cancel Avery's request
+UPDATE tutoring_requests
+SET status = 'Cancelled'
+WHERE request_id = 3;
+```
+
+**Before and after the revision** (`SELECT * FROM tutoring_requests WHERE request_id = 1;`):
+
+```text
+--- 4.1 Before update (request_id = 1) ---
+request_id  student_id  course   topic  preferred_date  preferred_time  status      created_at
+----------  ----------  -------  -----  --------------  --------------  ------  -------------------
+         1           1  IS 6465  Forms  2026-11-16      15:00           Open    2026-11-09 02:30:04
+
+--- 4.2 After update (request_id = 1) ---
+request_id  student_id  course   topic  preferred_date  preferred_time  status      created_at
+----------  ----------  -------  -----  --------------  --------------  ------  -------------------
+         1           1  IS 6465  Forms  2026-11-19      16:00           Open    2026-11-09 02:30:04
+```
+
+**Avery's Cancelled status** (`SELECT * FROM tutoring_requests WHERE request_id = 3;`):
+
+```text
+--- 4.3 Avery request after cancelling (request_id = 3) ---
+request_id  student_id  course      topic     preferred_date  preferred_time   status        created_at
+----------  ----------  -------  -----------  --------------  --------------  ---------  -------------------
+         3           2  IS 6465  SQLite CRUD  2026-11-17      13:00           Cancelled  2026-11-09 02:30:04
+```
+
+**Why is a specific WHERE clause essential in an UPDATE statement?**
+
+Without WHERE, every request could get updated. Using request_id changes only the one we picked.
+
+**Why does the Peer Tutoring Hub use a Cancelled status instead of immediately deleting a real request?**
+
+Cancelling keeps the request in the database, so there’s still a record of what happened.
+
+## Part 5: Delete One Test Request
+
+**INSERT statement for the test request:**
+
+```sql
+INSERT INTO tutoring_requests (student_id, course, topic, preferred_date, preferred_time)
+VALUES (1, 'IS 6465', 'Delete Practice', '2026-11-20', '09:00');
+```
+
+**DELETE statement:**
+
+```sql
+DELETE FROM tutoring_requests
+WHERE request_id = 4;
+```
+
+**Verification** (`SELECT * FROM tutoring_requests;` before and after the DELETE):
+
+```text
+--- 5.1 Before delete ---
+request_id  student_id  course        topic       preferred_date  preferred_time   status        created_at
+----------  ----------  -------  ---------------  --------------  --------------  ---------  -------------------
+         1           1  IS 6465  Forms            2026-11-19      16:00           Open       2026-11-09 02:30:04
+         2           1  IS 6465  SQL SELECT       2026-11-18      10:00           Open       2026-11-09 02:30:04
+         3           2  IS 6465  SQLite CRUD      2026-11-17      13:00           Cancelled  2026-11-09 02:30:04
+         4           1  IS 6465  Delete Practice  2026-11-20      09:00           Open       2026-11-09 02:30:04
+
+--- 5.2 After delete ---
+request_id  student_id  course      topic     preferred_date  preferred_time   status        created_at
+----------  ----------  -------  -----------  --------------  --------------  ---------  -------------------
+         1           1  IS 6465  Forms        2026-11-19      16:00           Open       2026-11-09 02:30:04
+         2           1  IS 6465  SQL SELECT   2026-11-18      10:00           Open       2026-11-09 02:30:04
+         3           2  IS 6465  SQLite CRUD  2026-11-17      13:00           Cancelled  2026-11-09 02:30:04
+```
+
+The test record (request_id 4, Delete Practice) is gone after the DELETE, and requests 1–3 remain.
+
+**Why is a WHERE clause essential in a DELETE statement?**
+
+Without WHERE, DELETE would wipe out every request. The request_id makes sure we only delete the test row.
+
+## Part 6: Reflect on the CRUD Workflow
+
+| CRUD Action | SQL Statement | Peer Tutoring Hub Example |
+|---|---|---|
+| Create | INSERT INTO | Adding students and tutoring requests |
+| Read | SELECT | Retrieving tutoring requests and student information |
+| Update | UPDATE | Changing a request date or cancelling a request |
+| Delete | DELETE | Removing a test tutoring request |
+
+**How does the database preserve the connection between a student and that student’s requests?**
+
+Each request stores a student_id that points to the students table. The foreign key makes sure it refers to a real student.
+
+**Which database constraint prevents two student rows from using the same email address?**
+
+The UNIQUE constraint on student_email.
+
+**What could happen if an UPDATE or DELETE statement did not include a WHERE clause?**
+
+It could update or delete every row instead of just the one we meant to change.
+
+**When the application later receives values from an HTML form, why should PHP send those values as parameters instead of placing them directly into SQL text?**
+
+Parameters keep form input separate from the SQL command, which helps prevent SQL injection.
